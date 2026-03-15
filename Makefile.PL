@@ -16,8 +16,8 @@ WriteMakefile(
     resources   => {
       repository => {
         type => 'git',
-        url  => 'https://github.com/thomas_busch/perl-SQL-Wizard.git',
-        web  => 'https://github.com/thomas_busch/perl-SQL-Wizard',
+        url  => 'https://github.com/thomasbusch/perl-SQL-Wizard.git',
+        web  => 'https://github.com/thomasbusch/perl-SQL-Wizard',
       },
     },
   },
