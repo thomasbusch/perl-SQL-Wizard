@@ -1,13 +1,13 @@
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-  NAME         => 'SQL::Wizard',
-  VERSION_FROM => 'lib/SQL/Wizard.pm',
-  ABSTRACT     => 'Composable SQL query builder with expression trees',
-  AUTHOR       => 'Thomas Busch <tbusch@cpan.org>',
-  LICENSE      => 'perl_5',
+  NAME          => 'SQL::Wizard',
+  VERSION_FROM  => 'lib/SQL/Wizard.pm',
+  ABSTRACT_FROM => 'lib/SQL/Wizard.pod',
+  AUTHOR        => 'Thomas Busch <tbusch@cpan.org>',
+  LICENSE       => 'MIT',
   MIN_PERL_VERSION => '5.10.0',
-  PREREQ_PM    => {},
+  PREREQ_PM     => {},
   TEST_REQUIRES => {
     'Test::More' => 0,
   },
