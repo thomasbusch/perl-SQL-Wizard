@@ -1,0 +1,24 @@
+use ExtUtils::MakeMaker;
+
+WriteMakefile(
+  NAME         => 'SQL::Wizard',
+  VERSION_FROM => 'lib/SQL/Wizard.pm',
+  ABSTRACT     => 'Composable SQL query builder with expression trees',
+  AUTHOR       => 'Thomas Busch <tbusch@cpan.org>',
+  LICENSE      => 'perl_5',
+  MIN_PERL_VERSION => '5.10.0',
+  PREREQ_PM    => {},
+  TEST_REQUIRES => {
+    'Test::More' => 0,
+  },
+  META_MERGE => {
+    'meta-spec' => { version => 2 },
+    resources   => {
+      repository => {
+        type => 'git',
+        url  => 'https://github.com/thomas_busch/perl-SQL-Wizard.git',
+        web  => 'https://github.com/thomas_busch/perl-SQL-Wizard',
+      },
+    },
+  },
+);
