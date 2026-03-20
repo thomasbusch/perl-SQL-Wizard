@@ -60,7 +60,7 @@ outside the Perl core (plus Test::More for tests).
 
 ## Constructor
 
-### New
+### new
 
     my $q = SQL::Wizard->new;
     my $q = SQL::Wizard->new(dialect => 'mysql');
@@ -74,7 +74,7 @@ etc.). Currently all output is standard ANSI SQL.
 These methods construct leaf nodes in the expression tree. They are the
 building blocks for everything else.
 
-### Col
+### col
 
     $q->col('u.name')
     $q->col('price')
@@ -89,7 +89,7 @@ conditions where a bare string might otherwise be treated as a literal.
     # vs plain string value (produces bind param)
     -where => { user_id => 'u.id' }             # user_id = ?  (binds 'u.id')
 
-### Val
+### val
 
     $q->val(42)
     $q->val('some string')
@@ -102,7 +102,7 @@ where it might otherwise be interpreted differently (e.g. in `-columns`).
     $q->func(COALESCE => 'nickname', $q->val('Anonymous'))
     # => COALESCE(nickname, ?)  bind: ['Anonymous']
 
-### Raw
+### raw
 
     $q->raw('NOW()')
     $q->raw('? + INTERVAL ? DAY', $start, $days)
@@ -114,7 +114,7 @@ arguments after the SQL string.
     -set => { updated_at => $q->raw('NOW()') }
     -where => { created_at => { '>' => $q->raw("NOW() - INTERVAL '30 days'") } }
 
-### Func
+### func
 
     $q->func('COUNT', '*')
     $q->func('COALESCE', 'nickname', $q->val('Anonymous'))
@@ -130,28 +130,28 @@ as column references.
     $q->func('SUM', 'amount')                  # SUM(amount)
     $q->func('NOW')                            # NOW()
 
-### Coalesce
+### coalesce
 
     $q->coalesce('nickname', $q->val('Anonymous'))
     # COALESCE(nickname, ?)
 
 Shorthand for `$q->func('COALESCE', ...)`.
 
-### Greatest
+### greatest
 
     $q->greatest('a', 'b', 'c')
     # GREATEST(a, b, c)
 
 Shorthand for `$q->func('GREATEST', ...)`.
 
-### Least
+### least
 
     $q->least('a', 'b')
     # LEAST(a, b)
 
 Shorthand for `$q->func('LEAST', ...)`.
 
-### Cast
+### cast
 
     $q->cast('price', 'INTEGER')
     $q->cast($q->col('amount'), 'DECIMAL(10,2)')
@@ -160,7 +160,7 @@ Shorthand for `$q->func('LEAST', ...)`.
 Returns a CAST expression. The first argument may be a column name string or
 any expression object.
 
-### Exists
+### exists
 
     $q->exists($subquery)
     # EXISTS(SELECT ...)
@@ -172,14 +172,14 @@ clause array:
         $q->select(-columns => [1], -from => 'vip', -where => { user_id => $q->col('u.id') })
     )]
 
-### Not\_exists
+### not\_exists
 
     $q->not_exists($subquery)
     # NOT EXISTS(SELECT ...)
 
 Like `exists` but negated.
 
-### Between
+### between
 
     $q->between('age', 18, 65)
     $q->between($q->col('price'), $q->val(10), $q->val(100))
@@ -189,14 +189,14 @@ Returns a BETWEEN expression. The column argument may be a string (treated as
 a column reference) or an expression. The low and high bounds may be plain
 values or expression objects.
 
-### Not\_between
+### not\_between
 
     $q->not_between('age', 0, 17)
     # age NOT BETWEEN ? AND ?
 
 Like `between` but negated.
 
-### And
+### and
 
     $q->and(\%cond1, \%cond2, ...)
     # (cond1 AND cond2)
@@ -204,14 +204,14 @@ Like `between` but negated.
 Combines multiple WHERE conditions with AND. Returns an expression that can be
 used anywhere a condition is accepted.
 
-### Or
+### or
 
     $q->or(\%cond1, \%cond2, ...)
     # (cond1 OR cond2)
 
 Combines multiple WHERE conditions with OR.
 
-### Not
+### not
 
     $q->not(\%cond)
     # NOT (cond)
@@ -223,7 +223,7 @@ Negates a condition.
 All expression objects (returned by `col`, `val`, `func`, `select`, etc.)
 support these methods.
 
-### As
+### as
 
     $expr->as('alias')
     # expr AS alias
@@ -234,31 +234,31 @@ Returns an aliased expression. Works on any expression type.
     $q->col('u.name')->as('user_name')         # u.name AS user_name
     $q->select(...)->as('subq')                # (SELECT ...) AS subq
 
-### Asc
+### asc
 
     $expr->asc
     # expr ASC
 
 Returns an ORDER BY expression with ASC direction.
 
-### Desc
+### desc
 
     $expr->desc
     # expr DESC
 
 Returns an ORDER BY expression with DESC direction.
 
-### Asc\_nulls\_first
+### asc\_nulls\_first
 
     $expr->asc_nulls_first
     # expr ASC NULLS FIRST
 
-### Desc\_nulls\_last
+### desc\_nulls\_last
 
     $expr->desc_nulls_last
     # expr DESC NULLS LAST
 
-### Over
+### over
 
     $func->over('window_name')
     $func->over(-partition_by => 'dept', -order_by => 'salary')
@@ -266,7 +266,7 @@ Returns an ORDER BY expression with DESC direction.
 Converts a function call into a window function expression. See
 ["WINDOW FUNCTIONS"](#window-functions) for full documentation.
 
-### To\_sql
+### to\_sql
 
     my ($sql, @bind) = $expr->to_sql;
 
@@ -309,7 +309,7 @@ can be chained:
 **Note:** Do not try to stringify an expression with `"$expr"` — it will die.
 Always use `->to_sql`.
 
-## Select
+## select
 
     my ($sql, @bind) = $q->select(
         -columns  => \@exprs,
@@ -613,7 +613,7 @@ Compound expressions are immutable — each chained call returns a new object.
 
 ## CTEs (with Clauses)
 
-### With
+### with
 
     $q->with(
         cte_name => $select_expr,
@@ -643,7 +643,7 @@ Compound expressions are immutable — each chained call returns a new object.
 
 CTEs are named pairwise: `(name1 =` $query1, name2 => $query2, ...)>.
 
-### With\_recursive
+### with\_recursive
 
     $q->with_recursive(
         cte_name => {
@@ -679,7 +679,7 @@ They are joined with `UNION ALL`:
     # )
     # SELECT * FROM org_tree ORDER BY name
 
-## Insert
+## insert
 
     $q->insert(
         -into         => $table,
@@ -754,7 +754,7 @@ Use `$q-`raw()> to inject a literal:
     # INSERT INTO counters (key, value) VALUES (?, ?)
     # ON DUPLICATE KEY UPDATE value = value + VALUES(value)
 
-### Returning
+### returning
 
     $q->insert(
         -into      => 'users',
@@ -763,7 +763,7 @@ Use `$q-`raw()> to inject a literal:
     )->to_sql
     # INSERT INTO users (name) VALUES (?) RETURNING id, created_at
 
-## Update
+## update
 
     $q->update(
         -table     => $table,
@@ -808,7 +808,7 @@ Use `$q-`raw()> to inject a literal:
         -where => { 'users.id' => $q->col('s.user_id') },
     )->to_sql
 
-## Delete
+## delete
 
     $q->delete(
         -from      => $table,
@@ -863,19 +863,19 @@ changing the original:
     $page2->to_sql;    # ... ORDER BY name LIMIT 20 OFFSET 20
     $counted->to_sql;  # SELECT COUNT(*) AS total FROM users WHERE status = ?
 
-### Add\_where
+### add\_where
 
     $select->add_where(\%extra_condition)
 
 Returns a new SELECT with the extra condition ANDed onto the existing WHERE.
 
-### Columns
+### columns
 
     $select->columns(\@new_columns)
 
 Returns a new SELECT with a replaced column list.
 
-### Order\_by
+### order\_by
 
     $select->order_by('name')
     $select->order_by('-name')                    # name DESC
@@ -884,13 +884,13 @@ Returns a new SELECT with a replaced column list.
 Returns a new SELECT with the given ORDER BY clause (replaces any existing one).
 The `'-col'` shorthand for DESC works here as well.
 
-### Limit
+### limit
 
     $select->limit(20)
 
 Returns a new SELECT with the given LIMIT.
 
-### Offset
+### offset
 
     $select->offset(40)
 

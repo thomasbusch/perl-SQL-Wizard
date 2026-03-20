@@ -21,12 +21,23 @@ $parser->parse_string_document($pod_string);
 
 # Transform headers
 my %acronyms = map { lc($_) => $_ } qw(SQL DBI CTEs CTE MySQL PostgreSQL SQLite ANSI);
+my %methods = map { lc($_) => 1 } qw(
+  new col val raw func coalesce greatest least cast exists between
+  and or not as asc desc over select insert update delete with
+  join returning columns limit offset
+);
 my $skip_name = 0;
 
 for my $line (split /\n/, $markdown) {
   if ($line =~ /^(#+)\s+(.+)/) {
     my ($h, $t) = ($1, $2);
-    $t = join(' ', map { ucfirst(lc($_)) } split(/\s+/, $t));
+    my @words = split(/\s+/, $t);
+    my $single = @words == 1;
+    $t = join(' ', map {
+      /[_]/ || /^-/              ? lc($_)              # underscored/dashed: to_sql, -columns
+      : $single && $methods{lc($_)} ? lc($_)           # single-word method headers: new, col, etc.
+                                 : ucfirst(lc($_))     # normal words: Title Case
+    } @words);
     $t =~ s/\b(\w+)\b/$acronyms{lc($1)} || $1/ge;
 
     # Remove # Name section; promote its description line to h1
