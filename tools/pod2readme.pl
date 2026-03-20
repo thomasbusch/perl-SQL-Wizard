@@ -34,9 +34,10 @@ for my $line (split /\n/, $markdown) {
     my @words = split(/\s+/, $t);
     my $single = @words == 1;
     $t = join(' ', map {
-      /[_]/ || /^-/              ? lc($_)              # underscored/dashed: to_sql, -columns
+      /[_]/ || /^-/                 ? lc($_)           # underscored/dashed: to_sql, -columns
+      : /\w+\(\)/                   ? lc($_)           # method calls: raw(), Raw()
       : $single && $methods{lc($_)} ? lc($_)           # single-word method headers: new, col, etc.
-                                 : ucfirst(lc($_))     # normal words: Title Case
+                                    : ucfirst(lc($_))  # normal words: Title Case
     } @words);
     $t =~ s/\b(\w+)\b/$acronyms{lc($1)} || $1/ge;
 

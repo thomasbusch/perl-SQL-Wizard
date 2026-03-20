@@ -958,7 +958,7 @@ clauses, and window frame specifications — are checked against an injection
 guard that rejects `;` (statement terminators) and `GO` (SQL Server batch
 separators).
 
-### The Raw() Escape Hatch
+### The raw() Escape Hatch
 
 `$q->raw(...)` is the only way to inject literal SQL into the query
 tree. **Never pass untrusted user input to `raw()`.** It is intended for
