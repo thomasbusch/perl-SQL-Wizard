@@ -9,7 +9,7 @@ my $q = SQL::Wizard->new;
 {
   my ($sql, @bind) = $q->update(
     -table => 'users',
-    -set   => { status => 'inactive', updated_at => $q->raw('NOW()') },
+    -set   => { status => 'inactive', updated_at => $q->now },
     -where => { last_login => { '<' => '2023-01-01' } },
   )->to_sql;
   like $sql, qr/^UPDATE users SET/, 'update start';

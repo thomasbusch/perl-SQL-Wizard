@@ -111,7 +111,7 @@ Injects literal SQL. Use sparingly — only for database-specific constructs tha
 the API does not support natively. Any bind values are passed as additional
 arguments after the SQL string.
 
-    -set => { updated_at => $q->raw('NOW()') }
+    -set => { updated_at => $q->now }
     -where => { created_at => { '>' => $q->raw("NOW() - INTERVAL '30 days'") } }
 
 ### func
@@ -128,7 +128,6 @@ as column references.
 
     $q->func('COUNT', '*')->as('total')        # COUNT(*) AS total
     $q->func('SUM', 'amount')                  # SUM(amount)
-    $q->func('NOW')                            # NOW()
 
 ### coalesce
 
@@ -150,6 +149,15 @@ Shorthand for `$q->func('GREATEST', ...)`.
     # LEAST(a, b)
 
 Shorthand for `$q->func('LEAST', ...)`.
+
+### Now
+
+    $q->now
+    # NOW()
+
+Shorthand for `$q->func('NOW')`. Useful in SET clauses:
+
+    -set => { updated_at => $q->now }
 
 ### cast
 
@@ -702,7 +710,7 @@ They are joined with `UNION ALL`:
 Columns are sorted alphabetically. Values are auto-wrapped as bind parameters.
 Use `$q-`raw()> to inject a literal:
 
-    -values => { name => 'Alice', created_at => $q->raw('NOW()') }
+    -values => { name => 'Alice', created_at => $q->now }
 
 ### Multi-row
 
@@ -777,7 +785,7 @@ Use `$q-`raw()> to inject a literal:
 
     $q->update(
         -table => 'users',
-        -set   => { status => 'inactive', updated_at => $q->raw('NOW()') },
+        -set   => { status => 'inactive', updated_at => $q->now },
         -where => { last_login => { '<' => '2023-01-01' } },
     )->to_sql
     # UPDATE users SET status = ?, updated_at = NOW() WHERE last_login < ?
@@ -862,6 +870,17 @@ changing the original:
     $admins->to_sql;   # SELECT * FROM users WHERE status = ? AND role = ?
     $page2->to_sql;    # ... ORDER BY name LIMIT 20 OFFSET 20
     $counted->to_sql;  # SELECT COUNT(*) AS total FROM users WHERE status = ?
+
+### Where
+
+    $select->where(\%condition)
+    $select->where(undef)
+
+Returns a new SELECT with the WHERE clause replaced. Pass `undef` to remove
+the WHERE clause entirely.
+
+    my $filtered = $base->where({ role => 'admin' });
+    my $all      = $base->where(undef);
 
 ### add\_where
 
@@ -969,6 +988,11 @@ database-specific constructs that the API does not support natively:
 
     # DANGEROUS: user input in raw SQL
     $q->raw($user_input)   # DO NOT DO THIS
+
+## Inspiration
+
+The closest equivalents in other languages are Ruby's Sequel and Python's
+SQLAlchemy Core. SQL::Wizard brings that level of SQL composability to Perl.
 
 ## Author
 

@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use SQL::Wizard::Renderer;
 use SQL::Wizard::Expr::Column;
@@ -326,6 +326,7 @@ sub cast {
 sub coalesce { my $self = shift; $self->func('COALESCE', @_) }
 sub greatest { my $self = shift; $self->func('GREATEST', @_) }
 sub least    { my $self = shift; $self->func('LEAST', @_) }
+sub now      { my $self = shift; $self->func('NOW') }
 
 ## Boolean operators
 

@@ -85,7 +85,7 @@ my $q = SQL::Wizard->new;
 {
   my ($sql, @bind) = $q->insert(
     -into   => 'events',
-    -values => { name => 'login', created_at => $q->raw('NOW()') },
+    -values => { name => 'login', created_at => $q->now },
   )->to_sql;
   like $sql, qr/VALUES \(/, 'insert with raw';
   like $sql, qr/NOW\(\)/, 'raw in insert value';

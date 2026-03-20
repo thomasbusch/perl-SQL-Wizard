@@ -12,6 +12,24 @@ my $base = $q->select(
   -where   => { status => 'active' },
 );
 
+# where replaces WHERE clause
+{
+  my $filtered = $base->where({ role => 'admin' });
+  my ($base_sql, @base_bind) = $base->to_sql;
+  my ($filt_sql, @filt_bind) = $filtered->to_sql;
+  is $base_sql, 'SELECT * FROM users WHERE status = ?', 'base unchanged after where';
+  is_deeply \@base_bind, ['active'], 'base binds unchanged after where';
+  is $filt_sql, 'SELECT * FROM users WHERE role = ?', 'where replaces condition';
+  is_deeply \@filt_bind, ['admin'], 'where binds replaced';
+}
+
+# where with undef removes WHERE clause
+{
+  my $no_where = $base->where(undef);
+  my ($sql) = $no_where->to_sql;
+  is $sql, 'SELECT * FROM users', 'where(undef) removes WHERE';
+}
+
 # add_where returns new object
 {
   my $admins = $base->add_where({ role => 'admin' });

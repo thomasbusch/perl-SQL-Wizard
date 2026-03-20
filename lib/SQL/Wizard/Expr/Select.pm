@@ -33,6 +33,13 @@ sub from_args {
 
 # Immutable modifiers — return cloned objects
 
+sub where {
+  my ($self, $where) = @_;
+  my $clone = dclone($self);
+  $clone->{where} = $where;
+  $clone;
+}
+
 sub add_where {
   my ($self, $extra) = @_;
   my $clone = dclone($self);
