@@ -30,3 +30,10 @@ WriteMakefile(
     },
   },
 );
+
+sub MY::postamble {
+  return <<'MAKE';
+readme: lib/SQL/Wizard.pod
+	pod2markdown lib/SQL/Wizard.pod > README.md
+MAKE
+}

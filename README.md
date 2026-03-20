@@ -1,6 +1,6 @@
 # NAME
 
-SQL::Wizard - Composable SQL query builder with expression trees
+SQL::Wizard - Composable SQL query builder with expression trees for Perl
 
 # SYNOPSIS
 
