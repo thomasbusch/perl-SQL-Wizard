@@ -1044,7 +1044,6 @@ SQLAlchemy Core. SQL::Wizard brings that level of SQL composability to Perl.
 - [SQL::Abstract::Classic](https://metacpan.org/pod/SQL%3A%3AAbstract%3A%3AClassic) — the pre-v2 SQL::Abstract API
 - [SQL::Maker](https://metacpan.org/pod/SQL%3A%3AMaker) — alternative hash to SQL generator
 - [DBIx::Class](https://metacpan.org/pod/DBIx%3A%3AClass) — full ORM built on SQL::Abstract
-- [DBI](https://metacpan.org/pod/DBI) — the database interface SQL::Wizard generates queries for
 
 ## Author
 
