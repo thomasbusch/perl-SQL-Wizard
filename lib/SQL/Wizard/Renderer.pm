@@ -183,6 +183,14 @@ sub _render_value {
 sub _render_raw {
   my ($self, $node) = @_;
 
+  # TRUNCATE
+  if ($node->{_truncate}) {
+    my $table = $node->{_truncate};
+    confess "Invalid table name '$table'"
+      unless $table =~ /^(\w+\.)*\w+$/;
+    return ("TRUNCATE TABLE " . $self->_quote_ident_if_needed($table), ());
+  }
+
   # EXISTS / NOT EXISTS
   if ($node->{_subquery}) {
     my ($s, @b) = $self->render($node->{_subquery});
@@ -292,7 +300,8 @@ sub _render_select {
     push @col_sqls, $s;
     push @bind, @b;
   }
-  push @parts, "SELECT " . join(', ', @col_sqls);
+  my $select_keyword = $node->{distinct} ? "SELECT DISTINCT" : "SELECT";
+  push @parts, "$select_keyword " . join(', ', @col_sqls);
 
   # FROM
   if ($node->{from}) {
@@ -883,18 +892,22 @@ sub _render_where {
         push @bind, @b;
       } elsif (ref $val eq 'ARRAY') {
         # { col => [1,2,3] } => col IN (?,?,?)
-        my @placeholders;
-        for my $v (@$val) {
-          if (blessed($v) && $v->isa('SQL::Wizard::Expr')) {
-            my ($s, @b) = $self->render($v);
-            push @placeholders, $s;
-            push @bind, @b;
-          } else {
-            push @placeholders, '?';
-            push @bind, $v;
+        if (!@$val) {
+          push @parts, '1 = 0';
+        } else {
+          my @placeholders;
+          for my $v (@$val) {
+            if (blessed($v) && $v->isa('SQL::Wizard::Expr')) {
+              my ($s, @b) = $self->render($v);
+              push @placeholders, $s;
+              push @bind, @b;
+            } else {
+              push @placeholders, '?';
+              push @bind, $v;
+            }
           }
+          push @parts, "$qkey IN (" . join(', ', @placeholders) . ")";
         }
-        push @parts, "$qkey IN (" . join(', ', @placeholders) . ")";
       } else {
         push @parts, "$qkey = ?";
         push @bind, $val;
@@ -934,18 +947,23 @@ sub _render_where_value {
           push @parts, "$col ${neg}IN ($s)";
           push @bind, @b;
         } elsif (ref $rhs eq 'ARRAY') {
-          my @ph;
-          for my $v (@$rhs) {
-            if (blessed($v) && $v->isa('SQL::Wizard::Expr')) {
-              my ($s, @b) = $self->render($v);
-              push @ph, $s;
-              push @bind, @b;
-            } else {
-              push @ph, '?';
-              push @bind, $v;
+          if (!@$rhs) {
+            # Empty list: -in => always false, -not_in => always true
+            push @parts, $neg ? '1 = 1' : '1 = 0';
+          } else {
+            my @ph;
+            for my $v (@$rhs) {
+              if (blessed($v) && $v->isa('SQL::Wizard::Expr')) {
+                my ($s, @b) = $self->render($v);
+                push @ph, $s;
+                push @bind, @b;
+              } else {
+                push @ph, '?';
+                push @bind, $v;
+              }
             }
+            push @parts, "$col ${neg}IN (" . join(', ', @ph) . ")";
           }
-          push @parts, "$col ${neg}IN (" . join(', ', @ph) . ")";
         }
       } elsif (!defined $rhs) {
         if ($sql_op eq '!=' || $sql_op eq '<>') {

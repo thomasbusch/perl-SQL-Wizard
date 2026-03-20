@@ -1,3 +1,9 @@
+0.08  2026-03-20
+    - SELECT DISTINCT via -distinct => 1 or ->distinct modifier
+    - $q->any($subquery) and $q->all($subquery) operators
+    - Empty IN list handling: -in => [] renders 1 = 0, -not_in => [] renders 1 = 1
+    - TRUNCATE TABLE via $q->truncate(-table => 'name')
+
 0.07  2026-03-20
     - Add ->where() modifier to replace WHERE clause entirely
     - Add $q->now shorthand for NOW()

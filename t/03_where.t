@@ -87,6 +87,27 @@ sub where_sql {
   is_deeply \@bind, ['banned', 'deleted'], '-not_in binds';
 }
 
+# empty -in list => always false
+{
+  my ($sql, @bind) = where_sql({ id => { -in => [] } });
+  like $sql, qr/WHERE 1 = 0/, 'empty -in is always false';
+  is_deeply \@bind, [], 'empty -in no binds';
+}
+
+# empty -not_in list => always true
+{
+  my ($sql, @bind) = where_sql({ id => { -not_in => [] } });
+  like $sql, qr/WHERE 1 = 1/, 'empty -not_in is always true';
+  is_deeply \@bind, [], 'empty -not_in no binds';
+}
+
+# empty arrayref value => always false
+{
+  my ($sql, @bind) = where_sql({ id => [] });
+  like $sql, qr/WHERE 1 = 0/, 'empty array value is always false';
+  is_deeply \@bind, [], 'empty array value no binds';
+}
+
 # -in with subquery
 {
   my $sub = $q->select(-columns => ['user_id'], -from => 'orders');

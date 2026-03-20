@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 use SQL::Wizard::Renderer;
 use SQL::Wizard::Expr::Column;
@@ -160,6 +160,17 @@ sub delete {
   );
 }
 
+sub truncate {
+  my ($self, %args) = @_;
+  confess "truncate requires -table" unless $args{'-table'};
+  SQL::Wizard::Expr::Raw->new(
+    sql       => '',
+    bind      => [],
+    _truncate => $args{'-table'},
+    _renderer => $self->{renderer},
+  );
+}
+
 ## Join helpers
 
 sub join {
@@ -278,6 +289,26 @@ sub not_exists {
   my ($self, $subquery) = @_;
   SQL::Wizard::Expr::Raw->new(
     sql       => 'NOT EXISTS',
+    bind      => [],
+    _subquery => $subquery,
+    _renderer => $self->{renderer},
+  );
+}
+
+sub any {
+  my ($self, $subquery) = @_;
+  SQL::Wizard::Expr::Raw->new(
+    sql       => 'ANY',
+    bind      => [],
+    _subquery => $subquery,
+    _renderer => $self->{renderer},
+  );
+}
+
+sub all {
+  my ($self, $subquery) = @_;
+  SQL::Wizard::Expr::Raw->new(
+    sql       => 'ALL',
     bind      => [],
     _subquery => $subquery,
     _renderer => $self->{renderer},

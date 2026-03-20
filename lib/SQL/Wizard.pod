@@ -201,6 +201,30 @@ clause array:
 
 Like C<exists> but negated.
 
+=head2 any
+
+    $q->any($subquery)
+    # ANY(SELECT ...)
+
+Returns an ANY subquery expression. Used with comparison operators in WHERE:
+
+    -where => { salary => { '>' => $q->any(
+        $q->select(-columns => ['salary'], -from => 'managers')
+    ) } }
+    # salary > ANY(SELECT salary FROM managers)
+
+=head2 all
+
+    $q->all($subquery)
+    # ALL(SELECT ...)
+
+Returns an ALL subquery expression. The comparison must hold for every row:
+
+    -where => { salary => { '>' => $q->all(
+        $q->select(-columns => ['salary'], -from => 'interns')
+    ) } }
+    # salary > ALL(SELECT salary FROM interns)
+
 =head2 between
 
     $q->between('age', 18, 65)
@@ -334,6 +358,7 @@ Always use C<< ->to_sql >>.
 =head1 SELECT
 
     my ($sql, @bind) = $q->select(
+        -distinct => 1,                   # optional
         -columns  => \@exprs,
         -from     => $table_or_arrayref,
         -where    => $condition,
@@ -345,7 +370,19 @@ Always use C<< ->to_sql >>.
         -offset   => $n,
     )->to_sql;
 
-All keys are optional. Omitting C<-columns> defaults to C<SELECT *>.
+All keys are optional except C<-from>. Omitting C<-columns> defaults to
+C<SELECT *>.
+
+=head2 -distinct
+
+Set to C<1> to produce C<SELECT DISTINCT>:
+
+    $q->select(-distinct => 1, -columns => ['department'], -from => 'employees')
+    # SELECT DISTINCT department FROM employees
+
+Can also be applied as an immutable modifier (see L</QUERY MODIFICATION>):
+
+    $base->distinct->to_sql
 
 =head2 -columns
 
@@ -897,6 +934,12 @@ changing the original:
     $page2->to_sql;    # ... ORDER BY name LIMIT 20 OFFSET 20
     $counted->to_sql;  # SELECT COUNT(*) AS total FROM users WHERE status = ?
 
+=head2 distinct
+
+    $select->distinct
+
+Returns a new SELECT with the DISTINCT keyword added.
+
 =head2 where
 
     $select->where(\%condition)
@@ -1030,6 +1073,22 @@ database-specific constructs that the API does not support natively:
 
 The closest equivalents in other languages are Ruby's Sequel and Python's
 SQLAlchemy Core. SQL::Wizard brings that level of SQL composability to Perl.
+
+=head1 SEE ALSO
+
+=over 4
+
+=item L<SQL::Abstract> — hash/arrayref to WHERE clause and basic CRUD
+
+=item L<SQL::Abstract::More> — extends SQL::Abstract with joins, limit, column syntax
+
+=item L<SQL::Abstract::Classic> — the pre-v2 SQL::Abstract API
+
+=item L<SQL::Maker> — alternative hash to SQL generator
+
+=item L<DBIx::Class> — full ORM built on SQL::Abstract
+
+=back
 
 =head1 AUTHOR
 

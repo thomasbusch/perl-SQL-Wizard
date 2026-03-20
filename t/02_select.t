@@ -130,6 +130,27 @@ my $q = SQL::Wizard->new;
   like $sql, qr/WINDOW w AS \(PARTITION BY department ORDER BY salary DESC\)/, 'window definition';
 }
 
+# SELECT DISTINCT via -distinct arg
+{
+  my ($sql, @bind) = $q->select(
+    -distinct => 1,
+    -columns  => ['department'],
+    -from     => 'employees',
+  )->to_sql;
+  is $sql, 'SELECT DISTINCT department FROM employees', 'distinct via arg';
+}
+
+# SELECT DISTINCT via ->distinct modifier
+{
+  my $base = $q->select(-columns => ['department'], -from => 'employees');
+  my ($sql) = $base->distinct->to_sql;
+  is $sql, 'SELECT DISTINCT department FROM employees', 'distinct via modifier';
+
+  # base unchanged
+  my ($base_sql) = $base->to_sql;
+  is $base_sql, 'SELECT department FROM employees', 'base unchanged after distinct';
+}
+
 # empty having clause omitted
 {
   my ($sql, @bind) = $q->select(

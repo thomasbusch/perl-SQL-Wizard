@@ -187,6 +187,30 @@ clause array:
 
 Like `exists` but negated.
 
+### Any
+
+    $q->any($subquery)
+    # ANY(SELECT ...)
+
+Returns an ANY subquery expression. Used with comparison operators in WHERE:
+
+    -where => { salary => { '>' => $q->any(
+        $q->select(-columns => ['salary'], -from => 'managers')
+    ) } }
+    # salary > ANY(SELECT salary FROM managers)
+
+### All
+
+    $q->all($subquery)
+    # ALL(SELECT ...)
+
+Returns an ALL subquery expression. The comparison must hold for every row:
+
+    -where => { salary => { '>' => $q->all(
+        $q->select(-columns => ['salary'], -from => 'interns')
+    ) } }
+    # salary > ALL(SELECT salary FROM interns)
+
 ### between
 
     $q->between('age', 18, 65)
@@ -320,6 +344,7 @@ Always use `->to_sql`.
 ## select
 
     my ($sql, @bind) = $q->select(
+        -distinct => 1,                   # optional
         -columns  => \@exprs,
         -from     => $table_or_arrayref,
         -where    => $condition,
@@ -331,7 +356,19 @@ Always use `->to_sql`.
         -offset   => $n,
     )->to_sql;
 
-All keys are optional. Omitting `-columns` defaults to `SELECT *`.
+All keys are optional except `-from`. Omitting `-columns` defaults to
+`SELECT *`.
+
+### -distinct
+
+Set to `1` to produce `SELECT DISTINCT`:
+
+    $q->select(-distinct => 1, -columns => ['department'], -from => 'employees')
+    # SELECT DISTINCT department FROM employees
+
+Can also be applied as an immutable modifier (see ["QUERY MODIFICATION"](#query-modification)):
+
+    $base->distinct->to_sql
 
 ### -columns
 
@@ -871,6 +908,12 @@ changing the original:
     $page2->to_sql;    # ... ORDER BY name LIMIT 20 OFFSET 20
     $counted->to_sql;  # SELECT COUNT(*) AS total FROM users WHERE status = ?
 
+### Distinct
+
+    $select->distinct
+
+Returns a new SELECT with the DISTINCT keyword added.
+
 ### Where
 
     $select->where(\%condition)
@@ -993,6 +1036,15 @@ database-specific constructs that the API does not support natively:
 
 The closest equivalents in other languages are Ruby's Sequel and Python's
 SQLAlchemy Core. SQL::Wizard brings that level of SQL composability to Perl.
+
+## See Also
+
+- [SQL::Abstract](https://metacpan.org/pod/SQL%3A%3AAbstract) — hash/arrayref to WHERE clause and basic CRUD
+- [SQL::Abstract::More](https://metacpan.org/pod/SQL%3A%3AAbstract%3A%3AMore) — extends SQL::Abstract with joins, limit, column syntax
+- [SQL::Abstract::Classic](https://metacpan.org/pod/SQL%3A%3AAbstract%3A%3AClassic) — the pre-v2 SQL::Abstract API
+- [SQL::Maker](https://metacpan.org/pod/SQL%3A%3AMaker) — alternative hash to SQL generator
+- [DBIx::Class](https://metacpan.org/pod/DBIx%3A%3AClass) — full ORM built on SQL::Abstract
+- [DBI](https://metacpan.org/pod/DBI) — the database interface SQL::Wizard generates queries for
 
 ## Author
 
