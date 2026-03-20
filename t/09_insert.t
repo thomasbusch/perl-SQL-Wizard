@@ -55,7 +55,7 @@ my $q = SQL::Wizard->new;
     },
   )->to_sql;
   like $sql, qr/INSERT INTO counters/, 'upsert insert';
-  like $sql, qr/ON CONFLICT \(key\) DO UPDATE SET value = counters\.value \+ EXCLUDED\.value/, 'on conflict';
+  like $sql, qr/ON CONFLICT \("key"\) DO UPDATE SET value = counters\.value \+ EXCLUDED\.value/, 'on conflict';
   is_deeply \@bind, ['hits', 1], 'upsert binds';
 }
 

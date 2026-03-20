@@ -944,6 +944,69 @@ as modifiers that apply to the full compound result.
     $sth->execute(@bind);
     my $rows = $sth->fetchall_arrayref({});
 
+=head1 SQL INJECTION PROTECTION
+
+SQL::Wizard uses multiple layers of defense against SQL injection:
+
+=head2 Bind parameters by default
+
+All data values are rendered as C<?> placeholders with bind parameters.
+This includes C<-where> values, C<-values> in INSERT, C<-set> values in
+UPDATE, and C<-limit>/C<-offset>. User data never becomes literal SQL.
+
+=head2 Automatic identifier quoting
+
+Identifiers (column names, table names, aliases, etc.) are automatically
+quoted when they are SQL reserved words, contain uppercase characters, or
+contain special characters. ANSI double quotes are used by default;
+MySQL backticks are used with C<< dialect => 'mysql' >>. Embedded quote
+characters are escaped by doubling, making injection through identifiers
+structurally impossible.
+
+=head2 Input validation
+
+On top of quoting, identifiers are validated against strict patterns as
+defense in depth:
+
+=over 4
+
+=item * WHERE operators are checked against a whitelist
+
+=item * Function names must match C<\w+>
+
+=item * Aliases must match C<\w+>
+
+=item * Table names must match C<< (\w+\.)*\w+(\|\w+)? >>
+
+=item * Column and ORDER BY names must match C<< (\w+\.)*\w+ >>
+
+=item * CAST types must match C<< \w[\w\s(),]* >>
+
+=item * Window names must match C<\w+>
+
+=item * LIMIT and OFFSET must be integers
+
+=back
+
+=head2 Injection guard on raw SQL strings
+
+Freeform SQL strings — string ON conditions in joins, plain string WHERE
+clauses, and window frame specifications — are checked against an injection
+guard that rejects C<;> (statement terminators) and C<GO> (SQL Server batch
+separators).
+
+=head2 The raw() escape hatch
+
+C<< $q->raw(...) >> is the only way to inject literal SQL into the query
+tree. B<Never pass untrusted user input to C<raw()>.> It is intended for
+database-specific constructs that the API does not support natively:
+
+    # Safe: hardcoded SQL with bind params
+    $q->raw('NOW() - INTERVAL ? DAY', $days)
+
+    # DANGEROUS: user input in raw SQL
+    $q->raw($user_input)   # DO NOT DO THIS
+
 =head1 AUTHOR
 
 Thomas Busch E<lt>tbusch@cpan.orgE<gt>

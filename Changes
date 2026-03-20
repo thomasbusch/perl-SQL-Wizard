@@ -1,3 +1,12 @@
+0.06  2026-03-20
+    - Automatic identifier quoting (reserved words, uppercase, special chars)
+    - ANSI double quotes by default, MySQL backticks with dialect => 'mysql'
+    - Combined PostgreSQL + MySQL + ANSI SQL reserved word list
+    - Injection guard on raw SQL strings (ON conditions, plain WHERE, window frames)
+    - Validate CAST type, window names
+    - IS NOT NULL via { col => { '!=' => undef } } or { col => { '<>' => undef } }
+    - IS NULL via { col => { '=' => undef } } in operator form
+
 0.05  2026-03-20
     - Reject empty string in -from
     - LIMIT and OFFSET are now bind parameters

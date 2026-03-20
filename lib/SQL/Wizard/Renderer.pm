@@ -21,12 +21,85 @@ sub new {
   bless \%args, $class;
 }
 
+# Combined reserved words (PostgreSQL + MySQL + ANSI SQL)
+my %RESERVED = map { $_ => 1 } qw(
+  ACCESSIBLE ADD ALL ALTER ANALYZE AND ANY ARRAY AS ASC ASENSITIVE ASYMMETRIC
+  BEFORE BETWEEN BIGINT BINARY BLOB BOTH BY
+  CALL CASCADE CASE CAST CHANGE CHAR CHARACTER CHECK COLLATE COLUMN CONCURRENTLY
+  CONDITION CONSTRAINT CONTINUE CONVERT CREATE CROSS CUBE CUME_DIST CURRENT_DATE
+  CURRENT_TIME CURRENT_TIMESTAMP CURRENT_USER CURSOR
+  DATABASE DATABASES DAY_HOUR DAY_MICROSECOND DAY_MINUTE DAY_SECOND DEC DECIMAL
+  DECLARE DEFAULT DEFERRABLE DELAYED DELETE DENSE_RANK DESC DESCRIBE DETERMINISTIC
+  DISTINCT DISTINCTROW DIV DO DOUBLE DROP DUAL
+  EACH ELSE ELSEIF EMPTY ENCLOSED END ESCAPED EXCEPT EXISTS EXIT EXPLAIN
+  FALSE FETCH FIRST_VALUE FLOAT FLOAT4 FLOAT8 FOR FORCE FOREIGN FREEZE FROM
+  FULL FULLTEXT FUNCTION
+  GENERATED GET GRANT GROUP GROUPING GROUPS
+  HAVING HIGH_PRIORITY HOUR_MICROSECOND HOUR_MINUTE HOUR_SECOND
+  IF IGNORE IN INDEX INFILE INITIALLY INNER INOUT INSENSITIVE INSERT INT INT1
+  INT2 INT3 INT4 INT8 INTEGER INTERSECT INTERVAL INTO IO_AFTER_GTIDS
+  IO_BEFORE_GTIDS IS ISNULL ITERATE
+  JOIN JSON_TABLE
+  KEY KEYS KILL
+  LAG LAST_VALUE LATERAL LEAD LEADING LEAVE LEFT LIKE LIMIT LINEAR LINES LOAD
+  LOCALTIME LOCALTIMESTAMP LOCK LONG LONGBLOB LONGTEXT LOOP LOW_PRIORITY
+  MASTER_BIND MASTER_SSL_VERIFY_SERVER_CERT MATCH MAXVALUE MEDIUMBLOB MEDIUMINT
+  MEDIUMTEXT MIDDLEINT MOD MODIFIES
+  NATURAL NOT NOTNULL NO_WRITE_TO_BINLOG NTH_VALUE NTILE NULL NUMERIC
+  OF ON ONLY OPTIMIZE OPTIMIZER_COSTS OPTION OPTIONALLY OR ORDER OUT OUTER
+  OUTFILE OVER OVERLAPS
+  PARTITION PRECISION PRIMARY PROCEDURE PURGE
+  RANGE READ READS READ_WRITE REAL RECURSIVE REFERENCES REGEXP RELEASE RENAME
+  REPEAT REPLACE REQUIRE RESIGNAL RESTRICT RETURN REVOKE RIGHT RLIKE ROW ROWS
+  ROW_NUMBER
+  SCHEMA SCHEMAS SELECT SENSITIVE SEPARATOR SET SHOW SIGNAL SIMILAR SOME SPATIAL
+  SPECIFIC SQL SQLEXCEPTION SQLSTATE SQLWARNING SQL_BIG_RESULT SQL_CALC_FOUND_ROWS
+  SQL_SMALL_RESULT SSL STARTING STORED STRAIGHT_JOIN SYMMETRIC SYSTEM
+  TABLE TABLESAMPLE TERMINATED THEN TINYBLOB TINYINT TINYTEXT TO TRAILING
+  TRIGGER TRUE
+  UNDO UNION UNIQUE UNLOCK UNSIGNED UPDATE USAGE USE USING UTC_DATE UTC_TIME
+  UTC_TIMESTAMP
+  VALUES VARBINARY VARCHAR VARCHARACTER VARIADIC VARYING VERBOSE VIRTUAL
+  WHEN WHERE WHILE WINDOW WITH WRITE
+  XOR YEAR_MONTH ZEROFILL
+);
+
+sub _needs_quoting {
+  my ($self, $part) = @_;
+  return 0 if $part eq '*';
+  return 1 if $RESERVED{uc $part};
+  return 1 if $part =~ /[A-Z]/;
+  return 1 if $part =~ /[^a-z0-9_]/;
+  return 0;
+}
+
+sub _quote_ident {
+  my ($self, $name) = @_;
+  my $q = ($self->{dialect} || 'ansi') eq 'mysql' ? '`' : '"';
+  return join('.', map {
+    $_ eq '*' ? $_ : $q . (s/\Q$q\E/$q$q/gr) . $q
+  } split /\./, $name, -1);
+}
+
+sub _quote_ident_if_needed {
+  my ($self, $name) = @_;
+  my @parts = split /\./, $name, -1;
+  return $name unless grep { $self->_needs_quoting($_) } @parts;
+  return $self->_quote_ident($name);
+}
+
 sub _injection_guard {
   my ($self, $string) = @_;
   if ($string =~ $INJECTION_GUARD) {
     confess "Possible SQL injection attempt '$string'. "
       . "If this is indeed a part of the desired SQL, use raw()";
   }
+}
+
+sub _assert_column {
+  my ($self, $col) = @_;
+  confess "Invalid column name '$col'"
+    unless $col =~ /^(\w+\.)*(\w+|\*)$/;
 }
 
 sub _assert_order_column {
@@ -79,7 +152,7 @@ sub _render_expr {
   }
   # Plain string = column name
   $self->_injection_guard($thing);
-  return ($thing, ());
+  return ($self->_quote_ident_if_needed($thing), ());
 }
 
 # table|alias => table alias
@@ -91,14 +164,15 @@ sub _expand_table {
   confess "Invalid table name '$thing'"
     unless $thing =~ /^(\w+\.)*\w+(\|\w+)?$/;
   my ($table, $alias) = split /\|/, $thing, 2;
-  return $alias ? ("$table $alias", ()) : ($table, ());
+  my $qt = $self->_quote_ident_if_needed($table);
+  return $alias ? ("$qt " . $self->_quote_ident_if_needed($alias), ()) : ($qt, ());
 }
 
 ## Leaf renderers
 
 sub _render_column {
   my ($self, $node) = @_;
-  return ($node->{name}, ());
+  return ($self->_quote_ident_if_needed($node->{name}), ());
 }
 
 sub _render_value {
@@ -127,8 +201,11 @@ sub _render_raw {
 
   # CAST
   if ($node->{_cast}) {
+    my $type = $node->{_cast}{type};
+    confess "Invalid CAST type '$type'"
+      unless $type =~ /^\w[\w\s(),]*$/;
     my ($es, @eb) = $self->render($node->{_cast}{expr});
-    return ("CAST($es AS $node->{_cast}{type})", @eb);
+    return ("CAST($es AS $type)", @eb);
   }
 
   # AND / OR
@@ -163,7 +240,7 @@ sub _render_alias {
   if ($node->{expr}->isa('SQL::Wizard::Expr::Select')) {
     $sql = "($sql)";
   }
-  return ("$sql AS $node->{alias}", @bind);
+  return ("$sql AS " . $self->_quote_ident_if_needed($node->{alias}), @bind);
 }
 
 sub _render_order {
@@ -275,9 +352,10 @@ sub _render_select {
   if ($node->{window}) {
     my @wdefs;
     for my $name (sort keys %{$node->{window}}) {
+      confess "Invalid window name '$name'" unless $name =~ /^\w+$/;
       my $spec = $node->{window}{$name};
       my ($s, @b) = $self->_render_window_spec($spec);
-      push @wdefs, "$name AS ($s)";
+      push @wdefs, $self->_quote_ident_if_needed($name) . " AS ($s)";
       push @bind, @b;
     }
     push @parts, "WINDOW " . join(', ', @wdefs);
@@ -350,6 +428,7 @@ sub _render_join {
       push @bind, @ob;
     } else {
       # String ON condition
+      $self->_injection_guard($node->{on});
       $sql .= " ON $node->{on}";
     }
   }
@@ -407,7 +486,8 @@ sub _render_window {
 
   my $spec = $node->{spec};
   if ($spec->{name}) {
-    return ("$expr_sql OVER $spec->{name}", @bind);
+    confess "Invalid window name '$spec->{name}'" unless $spec->{name} =~ /^\w+$/;
+    return ("$expr_sql OVER " . $self->_quote_ident_if_needed($spec->{name}), @bind);
   }
 
   my ($spec_sql, @sb) = $self->_render_window_spec($spec);
@@ -465,6 +545,7 @@ sub _render_window_spec {
   }
 
   if ($spec->{'-frame'}) {
+    $self->_injection_guard($spec->{'-frame'});
     push @parts, $spec->{'-frame'};
   }
 
@@ -551,11 +632,11 @@ sub _render_cte {
     if (ref $query eq 'HASH' && $query->{'-initial'}) {
       my ($is, @ib) = $self->render($query->{'-initial'});
       my ($rs, @rb) = $self->render($query->{'-recurse'});
-      push @cte_sqls, "$name AS ($is UNION ALL $rs)";
+      push @cte_sqls, $self->_quote_ident_if_needed($name) . " AS ($is UNION ALL $rs)";
       push @bind, @ib, @rb;
     } else {
       my ($s, @b) = $self->render($query);
-      push @cte_sqls, "$name AS ($s)";
+      push @cte_sqls, $self->_quote_ident_if_needed($name) . " AS ($s)";
       push @bind, @b;
     }
   }
@@ -571,12 +652,13 @@ sub _render_insert {
   my @bind;
 
   $self->_injection_guard($node->{into});
-  push @parts, "INSERT INTO $node->{into}";
+  push @parts, "INSERT INTO " . $self->_quote_ident_if_needed($node->{into});
 
   if ($node->{select}) {
     # INSERT ... SELECT
     if ($node->{columns}) {
-      push @parts, "(" . join(', ', @{$node->{columns}}) . ")";
+      $self->_assert_column($_) for @{$node->{columns}};
+      push @parts, "(" . join(', ', map { $self->_quote_ident_if_needed($_) } @{$node->{columns}}) . ")";
     }
     my ($s, @b) = $self->render($node->{select});
     push @parts, $s;
@@ -584,6 +666,7 @@ sub _render_insert {
   } elsif (ref $node->{values} eq 'HASH') {
     # Single row insert from hash
     my @cols = sort keys %{$node->{values}};
+    $self->_assert_column($_) for @cols;
     my @vals;
     for my $col (@cols) {
       my $v = $node->{values}{$col};
@@ -591,11 +674,14 @@ sub _render_insert {
       push @vals, $s;
       push @bind, @b;
     }
-    push @parts, "(" . join(', ', @cols) . ")";
+    push @parts, "(" . join(', ', map { $self->_quote_ident_if_needed($_) } @cols) . ")";
     push @parts, "VALUES (" . join(', ', @vals) . ")";
   } elsif (ref $node->{values} eq 'ARRAY') {
     # Multi-row insert
-    push @parts, "(" . join(', ', @{$node->{columns}}) . ")" if $node->{columns};
+    if ($node->{columns}) {
+      $self->_assert_column($_) for @{$node->{columns}};
+      push @parts, "(" . join(', ', map { $self->_quote_ident_if_needed($_) } @{$node->{columns}}) . ")";
+    }
     my @row_sqls;
     for my $row (@{$node->{values}}) {
       my @vals;
@@ -617,19 +703,22 @@ sub _render_insert {
     my $update = $oc->{'-update'};
     my @set_parts;
     for my $col (sort keys %$update) {
+      $self->_assert_column($col);
       my ($s, @b) = $self->_render_expr($update->{$col});
-      push @set_parts, "$col = $s";
+      push @set_parts, $self->_quote_ident_if_needed($col) . " = $s";
       push @bind, @b;
     }
-    push @parts, "ON CONFLICT ($target) DO UPDATE SET " . join(', ', @set_parts);
+    my $quoted_target = join(', ', map { $self->_quote_ident_if_needed(s/^\s+|\s+$//gr) } split /,/, $target);
+    push @parts, "ON CONFLICT ($quoted_target) DO UPDATE SET " . join(', ', @set_parts);
   }
 
   # ON DUPLICATE KEY (MySQL)
   if ($node->{on_duplicate}) {
     my @set_parts;
     for my $col (sort keys %{$node->{on_duplicate}}) {
+      $self->_assert_column($col);
       my ($s, @b) = $self->_render_expr($node->{on_duplicate}{$col});
-      push @set_parts, "$col = $s";
+      push @set_parts, $self->_quote_ident_if_needed($col) . " = $s";
       push @bind, @b;
     }
     push @parts, "ON DUPLICATE KEY UPDATE " . join(', ', @set_parts);
@@ -637,7 +726,8 @@ sub _render_insert {
 
   # RETURNING
   if ($node->{returning}) {
-    push @parts, "RETURNING " . join(', ', @{$node->{returning}});
+    $self->_assert_column($_) for @{$node->{returning}};
+    push @parts, "RETURNING " . join(', ', map { $self->_quote_ident_if_needed($_) } @{$node->{returning}});
   }
 
   return (join(' ', @parts), @bind);
@@ -674,8 +764,9 @@ sub _render_update {
   # SET
   my @set_parts;
   for my $col (sort keys %{$node->{set}}) {
+    $self->_assert_column($col);
     my ($s, @b) = $self->_render_expr($node->{set}{$col});
-    push @set_parts, "$col = $s";
+    push @set_parts, $self->_quote_ident_if_needed($col) . " = $s";
     push @bind, @b;
   }
   push @parts, "SET " . join(', ', @set_parts);
@@ -710,7 +801,8 @@ sub _render_update {
 
   # RETURNING
   if ($node->{returning}) {
-    push @parts, "RETURNING " . join(', ', @{$node->{returning}});
+    $self->_assert_column($_) for @{$node->{returning}};
+    push @parts, "RETURNING " . join(', ', map { $self->_quote_ident_if_needed($_) } @{$node->{returning}});
   }
 
   return (join(' ', @parts), @bind);
@@ -724,12 +816,12 @@ sub _render_delete {
   my @bind;
 
   $self->_injection_guard($node->{from});
-  push @parts, "DELETE FROM $node->{from}";
+  push @parts, "DELETE FROM " . $self->_quote_ident_if_needed($node->{from});
 
   # USING (PostgreSQL)
   if ($node->{using}) {
     $self->_injection_guard($node->{using});
-    push @parts, "USING $node->{using}";
+    push @parts, "USING " . $self->_quote_ident_if_needed($node->{using});
   }
 
   # WHERE
@@ -743,7 +835,8 @@ sub _render_delete {
 
   # RETURNING
   if ($node->{returning}) {
-    push @parts, "RETURNING " . join(', ', @{$node->{returning}});
+    $self->_assert_column($_) for @{$node->{returning}};
+    push @parts, "RETURNING " . join(', ', map { $self->_quote_ident_if_needed($_) } @{$node->{returning}});
   }
 
   return (join(' ', @parts), @bind);
@@ -766,9 +859,6 @@ sub _render_where {
     for my $key (sort keys %$where) {
       my $val = $where->{$key};
 
-      $self->_injection_guard($key)
-        unless blessed($key) && $key->isa('SQL::Wizard::Expr');
-
       # Expression object as key (e.g. $q->func(...) => { '>' => 5 })
       if (blessed($key) && $key->isa('SQL::Wizard::Expr')) {
         my ($ks, @kb) = $self->render($key);
@@ -778,14 +868,17 @@ sub _render_where {
         next;
       }
 
+      $self->_injection_guard($key);
+      my $qkey = $self->_quote_ident_if_needed($key);
+
       if (!defined $val) {
-        push @parts, "$key IS NULL";
+        push @parts, "$qkey IS NULL";
       } elsif (blessed($val) && $val->isa('SQL::Wizard::Expr')) {
         my ($vs, @vb) = $self->render($val);
-        push @parts, "$key = $vs";
+        push @parts, "$qkey = $vs";
         push @bind, @vb;
       } elsif (ref $val eq 'HASH') {
-        my ($s, @b) = $self->_render_where_value($key, $val);
+        my ($s, @b) = $self->_render_where_value($qkey, $val);
         push @parts, $s;
         push @bind, @b;
       } elsif (ref $val eq 'ARRAY') {
@@ -801,9 +894,9 @@ sub _render_where {
             push @bind, $v;
           }
         }
-        push @parts, "$key IN (" . join(', ', @placeholders) . ")";
+        push @parts, "$qkey IN (" . join(', ', @placeholders) . ")";
       } else {
-        push @parts, "$key = ?";
+        push @parts, "$qkey = ?";
         push @bind, $val;
       }
     }
@@ -816,6 +909,7 @@ sub _render_where {
   }
 
   # Plain string
+  $self->_injection_guard($where);
   return ($where, ());
 }
 
@@ -852,6 +946,12 @@ sub _render_where_value {
             }
           }
           push @parts, "$col ${neg}IN (" . join(', ', @ph) . ")";
+        }
+      } elsif (!defined $rhs) {
+        if ($sql_op eq '!=' || $sql_op eq '<>') {
+          push @parts, "$col IS NOT NULL";
+        } else {
+          push @parts, "$col IS NULL";
         }
       } elsif (blessed($rhs) && $rhs->isa('SQL::Wizard::Expr')) {
         my ($s, @b) = $self->render($rhs);
