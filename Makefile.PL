@@ -34,6 +34,6 @@ WriteMakefile(
 sub MY::postamble {
   return <<'MAKE';
 readme: lib/SQL/Wizard.pod
-	pod2markdown lib/SQL/Wizard.pod > README.md
+	pod2markdown lib/SQL/Wizard.pod | perl -ne 'BEGIN { %u = map { lc($$_) => $$_ } qw(SQL DBI CTEs CTE MySQL PostgreSQL SQLite ANSI) } if (/^(#+\s+)(.+)/) { my $$h = $$1; my $$t = join(" ", map { ucfirst(lc($$_)) } split(/\s+/, $$2)); $$t =~ s/\b(\w+)\b/$$u{lc($$1)} || $$1/ge; print "$$h$$t\n" } else { print }' > README.md
 MAKE
 }
