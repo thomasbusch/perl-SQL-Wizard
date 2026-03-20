@@ -1,8 +1,6 @@
-# Name
+# SQL::Wizard - Composable SQL query builder with expression trees for Perl
 
-SQL::Wizard - Composable SQL query builder with expression trees for Perl
-
-# Synopsis
+## Synopsis
 
     use SQL::Wizard;
 
@@ -37,7 +35,7 @@ SQL::Wizard - Composable SQL query builder with expression trees for Perl
         -where => { status => 'deleted' },
     )->to_sql;
 
-# Description
+## Description
 
 SQL::Wizard builds SQL queries as composable expression trees. Every API call
 constructs a node in the tree. Nothing is rendered to SQL until `->to_sql`
@@ -60,9 +58,9 @@ conditions work exactly as Perl developers already expect.
 - **Zero non-core dependencies.** No SQL::Abstract, no Moose, nothing
 outside the Perl core (plus Test::More for tests).
 
-# Constructor
+## Constructor
 
-## New
+### New
 
     my $q = SQL::Wizard->new;
     my $q = SQL::Wizard->new(dialect => 'mysql');
@@ -71,12 +69,12 @@ Creates a new SQL::Wizard instance. The optional `dialect` parameter is
 reserved for future dialect-specific rendering (quoting styles, LIMIT syntax,
 etc.). Currently all output is standard ANSI SQL.
 
-# Expression Primitives
+## Expression Primitives
 
 These methods construct leaf nodes in the expression tree. They are the
 building blocks for everything else.
 
-## Col
+### Col
 
     $q->col('u.name')
     $q->col('price')
@@ -91,7 +89,7 @@ conditions where a bare string might otherwise be treated as a literal.
     # vs plain string value (produces bind param)
     -where => { user_id => 'u.id' }             # user_id = ?  (binds 'u.id')
 
-## Val
+### Val
 
     $q->val(42)
     $q->val('some string')
@@ -104,7 +102,7 @@ where it might otherwise be interpreted differently (e.g. in `-columns`).
     $q->func(COALESCE => 'nickname', $q->val('Anonymous'))
     # => COALESCE(nickname, ?)  bind: ['Anonymous']
 
-## Raw
+### Raw
 
     $q->raw('NOW()')
     $q->raw('? + INTERVAL ? DAY', $start, $days)
@@ -116,7 +114,7 @@ arguments after the SQL string.
     -set => { updated_at => $q->raw('NOW()') }
     -where => { created_at => { '>' => $q->raw("NOW() - INTERVAL '30 days'") } }
 
-## Func
+### Func
 
     $q->func('COUNT', '*')
     $q->func('COALESCE', 'nickname', $q->val('Anonymous'))
@@ -132,28 +130,28 @@ as column references.
     $q->func('SUM', 'amount')                  # SUM(amount)
     $q->func('NOW')                            # NOW()
 
-## Coalesce
+### Coalesce
 
     $q->coalesce('nickname', $q->val('Anonymous'))
     # COALESCE(nickname, ?)
 
 Shorthand for `$q->func('COALESCE', ...)`.
 
-## Greatest
+### Greatest
 
     $q->greatest('a', 'b', 'c')
     # GREATEST(a, b, c)
 
 Shorthand for `$q->func('GREATEST', ...)`.
 
-## Least
+### Least
 
     $q->least('a', 'b')
     # LEAST(a, b)
 
 Shorthand for `$q->func('LEAST', ...)`.
 
-## Cast
+### Cast
 
     $q->cast('price', 'INTEGER')
     $q->cast($q->col('amount'), 'DECIMAL(10,2)')
@@ -162,7 +160,7 @@ Shorthand for `$q->func('LEAST', ...)`.
 Returns a CAST expression. The first argument may be a column name string or
 any expression object.
 
-## Exists
+### Exists
 
     $q->exists($subquery)
     # EXISTS(SELECT ...)
@@ -174,14 +172,14 @@ clause array:
         $q->select(-columns => [1], -from => 'vip', -where => { user_id => $q->col('u.id') })
     )]
 
-## Not\_exists
+### Not\_exists
 
     $q->not_exists($subquery)
     # NOT EXISTS(SELECT ...)
 
 Like `exists` but negated.
 
-## Between
+### Between
 
     $q->between('age', 18, 65)
     $q->between($q->col('price'), $q->val(10), $q->val(100))
@@ -191,14 +189,14 @@ Returns a BETWEEN expression. The column argument may be a string (treated as
 a column reference) or an expression. The low and high bounds may be plain
 values or expression objects.
 
-## Not\_between
+### Not\_between
 
     $q->not_between('age', 0, 17)
     # age NOT BETWEEN ? AND ?
 
 Like `between` but negated.
 
-## And
+### And
 
     $q->and(\%cond1, \%cond2, ...)
     # (cond1 AND cond2)
@@ -206,26 +204,26 @@ Like `between` but negated.
 Combines multiple WHERE conditions with AND. Returns an expression that can be
 used anywhere a condition is accepted.
 
-## Or
+### Or
 
     $q->or(\%cond1, \%cond2, ...)
     # (cond1 OR cond2)
 
 Combines multiple WHERE conditions with OR.
 
-## Not
+### Not
 
     $q->not(\%cond)
     # NOT (cond)
 
 Negates a condition.
 
-# Expression Methods
+## Expression Methods
 
 All expression objects (returned by `col`, `val`, `func`, `select`, etc.)
 support these methods.
 
-## As
+### As
 
     $expr->as('alias')
     # expr AS alias
@@ -236,31 +234,31 @@ Returns an aliased expression. Works on any expression type.
     $q->col('u.name')->as('user_name')         # u.name AS user_name
     $q->select(...)->as('subq')                # (SELECT ...) AS subq
 
-## Asc
+### Asc
 
     $expr->asc
     # expr ASC
 
 Returns an ORDER BY expression with ASC direction.
 
-## Desc
+### Desc
 
     $expr->desc
     # expr DESC
 
 Returns an ORDER BY expression with DESC direction.
 
-## Asc\_nulls\_first
+### Asc\_nulls\_first
 
     $expr->asc_nulls_first
     # expr ASC NULLS FIRST
 
-## Desc\_nulls\_last
+### Desc\_nulls\_last
 
     $expr->desc_nulls_last
     # expr DESC NULLS LAST
 
-## Over
+### Over
 
     $func->over('window_name')
     $func->over(-partition_by => 'dept', -order_by => 'salary')
@@ -268,7 +266,7 @@ Returns an ORDER BY expression with DESC direction.
 Converts a function call into a window function expression. See
 ["WINDOW FUNCTIONS"](#window-functions) for full documentation.
 
-## To\_sql
+### To\_sql
 
     my ($sql, @bind) = $expr->to_sql;
 
@@ -282,7 +280,7 @@ DBI's execute:
     my ($sql, @bind) = $q->select(...)->to_sql;
     $dbh->prepare($sql)->execute(@bind);
 
-# Arithmetic Operators
+## Arithmetic Operators
 
 Expression objects support Perl arithmetic operators via overloading:
 
@@ -311,7 +309,7 @@ can be chained:
 **Note:** Do not try to stringify an expression with `"$expr"` — it will die.
 Always use `->to_sql`.
 
-# Select
+## Select
 
     my ($sql, @bind) = $q->select(
         -columns  => \@exprs,
@@ -327,7 +325,7 @@ Always use `->to_sql`.
 
 All keys are optional. Omitting `-columns` defaults to `SELECT *`.
 
-## -columns
+### -columns
 
 An arrayref of column expressions. Each element may be:
 
@@ -343,7 +341,7 @@ An arrayref of column expressions. Each element may be:
         $q->case(...)->as('status_label'),
     ]
 
-## -from
+### -from
 
 A table name string, a `table|alias` shorthand, an expression, or an arrayref
 mixing tables and join expressions.
@@ -357,11 +355,11 @@ Subqueries in FROM must be aliased with `->as()`:
 
     -from => [$q->select(...)->as('sub')]
 
-## -where
+### -where
 
 See ["WHERE CLAUSE SYNTAX"](#where-clause-syntax).
 
-## -group\_by
+### -group\_by
 
 A column name string or arrayref of column names/expressions:
 
@@ -369,7 +367,7 @@ A column name string or arrayref of column names/expressions:
     -group_by => ['department', 'year']
     -group_by => [$q->func('DATE_TRUNC', $q->val('month'), 'created_at')]
 
-## -having
+### -having
 
 Same syntax as `-where`. Applied after grouping.
 
@@ -380,7 +378,7 @@ Same syntax as `-where`. Applied after grouping.
 object as a hash key in `-having`. Use `$q-`raw()> for function-based HAVING
 conditions, or use the arrayref condition syntax.
 
-## -order\_by
+### -order\_by
 
 A single column name, an expression, or an arrayref of either:
 
@@ -397,23 +395,23 @@ These can be mixed in an arrayref:
     -order_by => [{ -desc => 'created_at' }, 'name']    # same result
     -order_by => [$q->col('created_at')->desc, 'name']  # same result
 
-## -window
+### -window
 
 A hashref mapping window names to window specifications, for use with named
 windows. See ["WINDOW FUNCTIONS"](#window-functions).
 
-## -limit And -offset
+### -limit And -offset
 
     -limit  => 20
     -offset => 40
 
 Appended as `LIMIT 20 OFFSET 40`.
 
-# Where Clause Syntax
+## Where Clause Syntax
 
 The WHERE clause accepts several forms that can be freely mixed and nested.
 
-## Hashref Conditions
+### Hashref Conditions
 
     { column => $value }          # column = ?
     { column => undef }           # column IS NULL
@@ -429,14 +427,14 @@ Multiple keys in a hashref are combined with AND:
     { status => 'active', age => { '>' => 18 } }
     # status = ? AND age > ?
 
-## -in And -not\_in
+### -in And -not\_in
 
     { id => { -in     => [1, 2, 3] } }           # id IN (?, ?, ?)
     { id => { -not_in => [1, 2, 3] } }           # id NOT IN (?, ?, ?)
     { id => { -in     => $subquery  } }           # id IN (SELECT ...)
     { id => { -not_in => $subquery  } }           # id NOT IN (SELECT ...)
 
-## Arrayref With -and / -or
+### Arrayref With -and / -or
 
     [-and => [ \%cond1, \%cond2 ]]        # cond1 AND cond2
     [-or  => [ \%cond1, \%cond2 ]]        # cond1 OR cond2
@@ -452,7 +450,7 @@ Nesting:
     ]]
     # (status = ? AND (role = ? OR role = ?))
 
-## Expression Objects In Where
+### Expression Objects In Where
 
 Any expression object can appear in a WHERE array:
 
@@ -462,13 +460,13 @@ Any expression object can appear in a WHERE array:
         $q->raw('ST_DWithin(location, ?, ?)', $point, $radius),
     ]
 
-## Plain String
+### Plain String
 
     -where => '1 = 1'
 
 Used as a literal SQL fragment. No bind parameters.
 
-# Joins
+## Joins
 
     $q->join($table, $on)
     $q->left_join($table, $on)
@@ -506,9 +504,9 @@ a plain SQL string or a hashref condition.
 
 `full_join` renders as `FULL OUTER JOIN`. `cross_join` takes no ON clause.
 
-# Case Expressions
+## Case Expressions
 
-## Searched Case
+### Searched Case
 
     $q->case(
         [$q->when(\%condition, $then), ...],
@@ -527,7 +525,7 @@ expression object.
     )->as('tier')
     # CASE WHEN total > ? THEN ? WHEN total > ? THEN ? WHEN total > ? THEN ? ELSE ? END AS tier
 
-## Simple Case (case On)
+### Simple Case (case On)
 
     $q->case_on(
         $q->col('u.role'),
@@ -537,17 +535,17 @@ expression object.
     )->as('access_level')
     # CASE u.role WHEN ? THEN ? WHEN ? THEN ? ELSE ? END AS access_level
 
-## When And Else
+### When And Else
 
 `when($condition, $then)` and `else($value)` are helper constructors used
 only inside `case()` and `case_on()`. They are not standalone expressions.
 
-# Window Functions
+## Window Functions
 
 Window functions are created by calling `->over(...)` on a `func()`
 expression.
 
-## Inline Window Specification
+### Inline Window Specification
 
     $q->func('ROW_NUMBER')->over(
         -partition_by => 'department',
@@ -567,7 +565,7 @@ Options for the inline spec:
 - `-order_by` — same syntax as SELECT `-order_by`
 - `-frame` — a raw SQL frame clause string
 
-## Named Windows
+### Named Windows
 
 Reference a named window (defined in `-window`) by passing its name as a
 string to `over`:
@@ -589,7 +587,7 @@ string to `over`:
     )
     # ... WINDOW w AS (PARTITION BY department ORDER BY salary DESC)
 
-# Union / Intersect / Except
+## Union / Intersect / Except
 
 Compound queries are built by chaining methods on a SELECT expression:
 
@@ -613,9 +611,9 @@ set, not to any individual query.
 
 Compound expressions are immutable — each chained call returns a new object.
 
-# CTEs (with Clauses)
+## CTEs (with Clauses)
 
-## With
+### With
 
     $q->with(
         cte_name => $select_expr,
@@ -645,7 +643,7 @@ Compound expressions are immutable — each chained call returns a new object.
 
 CTEs are named pairwise: `(name1 =` $query1, name2 => $query2, ...)>.
 
-## With\_recursive
+### With\_recursive
 
     $q->with_recursive(
         cte_name => {
@@ -681,7 +679,7 @@ They are joined with `UNION ALL`:
     # )
     # SELECT * FROM org_tree ORDER BY name
 
-# Insert
+## Insert
 
     $q->insert(
         -into         => $table,
@@ -693,7 +691,7 @@ They are joined with `UNION ALL`:
         -returning    => \@cols,           # PostgreSQL RETURNING
     )->to_sql
 
-## Single Row
+### Single Row
 
     $q->insert(
         -into   => 'users',
@@ -706,7 +704,7 @@ Use `$q-`raw()> to inject a literal:
 
     -values => { name => 'Alice', created_at => $q->raw('NOW()') }
 
-## Multi-row
+### Multi-row
 
     $q->insert(
         -into    => 'users',
@@ -718,7 +716,7 @@ Use `$q-`raw()> to inject a literal:
     )->to_sql
     # INSERT INTO users (name, email) VALUES (?, ?), (?, ?)
 
-## Insert ... Select
+### Insert ... Select
 
     $q->insert(
         -into    => 'archive_users',
@@ -731,7 +729,7 @@ Use `$q-`raw()> to inject a literal:
     )->to_sql
     # INSERT INTO archive_users (id, name, email) SELECT id, name, email FROM users WHERE status = ?
 
-## Upsert — PostgreSQL On Conflict
+### Upsert — PostgreSQL On Conflict
 
     $q->insert(
         -into    => 'counters',
@@ -744,7 +742,7 @@ Use `$q-`raw()> to inject a literal:
     # INSERT INTO counters (key, value) VALUES (?, ?)
     # ON CONFLICT (key) DO UPDATE SET value = counters.value + EXCLUDED.value
 
-## Upsert — MySQL On Duplicate Key
+### Upsert — MySQL On Duplicate Key
 
     $q->insert(
         -into    => 'counters',
@@ -756,7 +754,7 @@ Use `$q-`raw()> to inject a literal:
     # INSERT INTO counters (key, value) VALUES (?, ?)
     # ON DUPLICATE KEY UPDATE value = value + VALUES(value)
 
-## Returning
+### Returning
 
     $q->insert(
         -into      => 'users',
@@ -765,7 +763,7 @@ Use `$q-`raw()> to inject a literal:
     )->to_sql
     # INSERT INTO users (name) VALUES (?) RETURNING id, created_at
 
-# Update
+## Update
 
     $q->update(
         -table     => $table,
@@ -775,7 +773,7 @@ Use `$q-`raw()> to inject a literal:
         -returning => \@cols,
     )->to_sql
 
-## Simple Update
+### Simple Update
 
     $q->update(
         -table => 'users',
@@ -784,7 +782,7 @@ Use `$q-`raw()> to inject a literal:
     )->to_sql
     # UPDATE users SET status = ?, updated_at = NOW() WHERE last_login < ?
 
-## Update With Join (MySQL Style)
+### Update With Join (MySQL Style)
 
     $q->update(
         -table => ['users|u', $q->join('orders|o', 'u.id = o.user_id')],
@@ -795,7 +793,7 @@ Use `$q-`raw()> to inject a literal:
     # SET u.last_order = o.created_at
     # WHERE o.status = ?
 
-## Update With From (PostgreSQL Style)
+### Update With From (PostgreSQL Style)
 
     $q->update(
         -table => 'users',
@@ -810,7 +808,7 @@ Use `$q-`raw()> to inject a literal:
         -where => { 'users.id' => $q->col('s.user_id') },
     )->to_sql
 
-# Delete
+## Delete
 
     $q->delete(
         -from      => $table,
@@ -819,7 +817,7 @@ Use `$q-`raw()> to inject a literal:
         -returning => \@cols,
     )->to_sql
 
-## Simple Delete
+### Simple Delete
 
     $q->delete(
         -from  => 'users',
@@ -827,7 +825,7 @@ Use `$q-`raw()> to inject a literal:
     )->to_sql
     # DELETE FROM users WHERE last_login < ? AND status = ?
 
-## Delete With Subquery
+### Delete With Subquery
 
     $q->delete(
         -from  => 'users',
@@ -837,7 +835,7 @@ Use `$q-`raw()> to inject a literal:
     )->to_sql
     # DELETE FROM users WHERE id NOT IN (SELECT user_id FROM active_sessions)
 
-## Delete With Using (PostgreSQL)
+### Delete With Using (PostgreSQL)
 
     $q->delete(
         -from  => 'orders',
@@ -849,7 +847,7 @@ Use `$q-`raw()> to inject a literal:
     )->to_sql
     # DELETE FROM orders USING users WHERE orders.user_id = users.id AND users.status = ?
 
-# Query Modification
+## Query Modification
 
 SELECT expressions are immutable. These methods return a modified copy without
 changing the original:
@@ -865,19 +863,19 @@ changing the original:
     $page2->to_sql;    # ... ORDER BY name LIMIT 20 OFFSET 20
     $counted->to_sql;  # SELECT COUNT(*) AS total FROM users WHERE status = ?
 
-## Add\_where
+### Add\_where
 
     $select->add_where(\%extra_condition)
 
 Returns a new SELECT with the extra condition ANDed onto the existing WHERE.
 
-## Columns
+### Columns
 
     $select->columns(\@new_columns)
 
 Returns a new SELECT with a replaced column list.
 
-## Order\_by
+### Order\_by
 
     $select->order_by('name')
     $select->order_by('-name')                    # name DESC
@@ -886,13 +884,13 @@ Returns a new SELECT with a replaced column list.
 Returns a new SELECT with the given ORDER BY clause (replaces any existing one).
 The `'-col'` shorthand for DESC works here as well.
 
-## Limit
+### Limit
 
     $select->limit(20)
 
 Returns a new SELECT with the given LIMIT.
 
-## Offset
+### Offset
 
     $select->offset(40)
 
@@ -901,7 +899,7 @@ Returns a new SELECT with the given OFFSET.
 Compound queries (UNION etc.) also support `order_by`, `limit`, and `offset`
 as modifiers that apply to the full compound result.
 
-# Usage With DBI
+## Usage With DBI
 
     use DBI;
     use SQL::Wizard;
@@ -920,17 +918,17 @@ as modifiers that apply to the full compound result.
     $sth->execute(@bind);
     my $rows = $sth->fetchall_arrayref({});
 
-# SQL Injection Protection
+## SQL Injection Protection
 
 SQL::Wizard uses multiple layers of defense against SQL injection:
 
-## Bind Parameters By Default
+### Bind Parameters By Default
 
 All data values are rendered as `?` placeholders with bind parameters.
 This includes `-where` values, `-values` in INSERT, `-set` values in
 UPDATE, and `-limit`/`-offset`. User data never becomes literal SQL.
 
-## Automatic Identifier Quoting
+### Automatic Identifier Quoting
 
 Identifiers (column names, table names, aliases, etc.) are automatically
 quoted when they are SQL reserved words, contain uppercase characters, or
@@ -939,7 +937,7 @@ MySQL backticks are used with `dialect => 'mysql'`. Embedded quote
 characters are escaped by doubling, making injection through identifiers
 structurally impossible.
 
-## Input Validation
+### Input Validation
 
 On top of quoting, identifiers are validated against strict patterns as
 defense in depth:
@@ -953,14 +951,14 @@ defense in depth:
 - Window names must match `\w+`
 - LIMIT and OFFSET must be integers
 
-## Injection Guard On Raw SQL Strings
+### Injection Guard On Raw SQL Strings
 
 Freeform SQL strings — string ON conditions in joins, plain string WHERE
 clauses, and window frame specifications — are checked against an injection
 guard that rejects `;` (statement terminators) and `GO` (SQL Server batch
 separators).
 
-## The Raw() Escape Hatch
+### The Raw() Escape Hatch
 
 `$q->raw(...)` is the only way to inject literal SQL into the query
 tree. **Never pass untrusted user input to `raw()`.** It is intended for
@@ -972,11 +970,11 @@ database-specific constructs that the API does not support natively:
     # DANGEROUS: user input in raw SQL
     $q->raw($user_input)   # DO NOT DO THIS
 
-# Author
+## Author
 
 Thomas Busch <tbusch@cpan.org>
 
-# License
+## License
 
 MIT License
 
