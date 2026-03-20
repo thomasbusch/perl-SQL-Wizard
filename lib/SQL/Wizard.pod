@@ -400,13 +400,20 @@ conditions, or use the arrayref condition syntax.
 
 =head2 -order_by
 
-A single column name, an expression, or an arrayref of either. To specify
-direction, use a hashref with C<-asc> or C<-desc>, or use C<< ->asc >> /
-C<< ->desc >> on an expression:
+A single column name, an expression, or an arrayref of either:
 
-    -order_by => 'name'
-    -order_by => [$q->col('name')->asc, $q->col('id')->desc]
-    -order_by => [{ -desc => 'created_at' }, 'name']
+    -order_by => 'name'                                 # name (ASC)
+    -order_by => '-created_at'                          # shorthand: col DESC
+    -order_by => { -desc => 'created_at' }              # hashref form
+    -order_by => { -asc  => 'name' }                    # hashref form (ASC)
+    -order_by => $q->col('created_at')->desc            # expression method
+    -order_by => $q->col('name')->asc                   # expression method (ASC)
+
+These can be mixed in an arrayref:
+
+    -order_by => ['-created_at', 'name']                # created_at DESC, name
+    -order_by => [{ -desc => 'created_at' }, 'name']    # same result
+    -order_by => [$q->col('created_at')->desc, 'name']  # same result
 
 =head2 -window
 
@@ -897,9 +904,11 @@ Returns a new SELECT with a replaced column list.
 =head2 order_by
 
     $select->order_by('name')
+    $select->order_by('-name')                    # name DESC
     $select->order_by($q->col('name')->desc, 'id')
 
 Returns a new SELECT with the given ORDER BY clause (replaces any existing one).
+The C<'-col'> shorthand for DESC works here as well.
 
 =head2 limit
 

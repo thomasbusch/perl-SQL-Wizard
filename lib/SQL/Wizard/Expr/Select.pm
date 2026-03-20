@@ -15,7 +15,7 @@ sub new {
 # Accepts extra key/value pairs (e.g. _cte, _renderer) merged in.
 sub from_args {
   my ($class, %args) = @_;
-  Carp::confess("select requires -from") unless defined $args{'-from'};
+  Carp::confess("select requires -from") unless $args{'-from'};
   my %node;
   $node{columns}  = $args{'-columns'}  if $args{'-columns'};
   $node{from}     = $args{'-from'}     if $args{'-from'};

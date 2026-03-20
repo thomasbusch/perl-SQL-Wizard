@@ -5,6 +5,12 @@ use warnings;
 use Carp;
 use Scalar::Util qw(blessed);
 
+my $INJECTION_GUARD = qr/
+    \;
+      |
+    ^ \s* go \s
+/xmi;
+
 my %VALID_OPS = map { $_ => 1 }
   '=', '!=', '<>', '<', '>', '<=', '>=',
   'LIKE', 'NOT LIKE', 'ILIKE', 'NOT ILIKE',
@@ -13,6 +19,26 @@ my %VALID_OPS = map { $_ => 1 }
 sub new {
   my ($class, %args) = @_;
   bless \%args, $class;
+}
+
+sub _injection_guard {
+  my ($self, $string) = @_;
+  if ($string =~ $INJECTION_GUARD) {
+    confess "Possible SQL injection attempt '$string'. "
+      . "If this is indeed a part of the desired SQL, use raw()";
+  }
+}
+
+sub _assert_order_column {
+  my ($self, $col) = @_;
+  confess "Invalid order_by column '$col'"
+    unless $col =~ /^(\w+\.)*\w+$/;
+}
+
+sub _assert_integer {
+  my ($self, $name, $value) = @_;
+  confess "$name must be an integer, got '$value'"
+    unless $value =~ /^\d+$/;
 }
 
 # Main dispatch
@@ -52,6 +78,7 @@ sub _render_expr {
     return $self->render($thing);
   }
   # Plain string = column name
+  $self->_injection_guard($thing);
   return ($thing, ());
 }
 
@@ -61,6 +88,8 @@ sub _expand_table {
   if (blessed($thing) && $thing->isa('SQL::Wizard::Expr')) {
     return $self->render($thing);
   }
+  confess "Invalid table name '$thing'"
+    unless $thing =~ /^(\w+\.)*\w+(\|\w+)?$/;
   my ($table, $alias) = split /\|/, $thing, 2;
   return $alias ? ("$table $alias", ()) : ($table, ());
 }
@@ -264,8 +293,20 @@ sub _render_select {
         my ($dir, $col) = each %$o;
         $dir = uc($dir);
         $dir =~ s/^-//;
+        $self->_assert_order_column($col) unless ref $col;
         my ($s, @b) = $self->_render_expr($col);
         push @osqls, "$s $dir";
+        push @bind, @b;
+      } elsif (!ref $o && $o =~ /^-(.+)/) {
+        # '-col' shorthand for col DESC
+        $self->_assert_order_column($1);
+        my ($s, @b) = $self->_render_expr($1);
+        push @osqls, "$s DESC";
+        push @bind, @b;
+      } elsif (!ref $o) {
+        $self->_assert_order_column($o);
+        my ($s, @b) = $self->_render_expr($o);
+        push @osqls, $s;
         push @bind, @b;
       } else {
         my ($s, @b) = $self->_render_expr($o);
@@ -277,8 +318,16 @@ sub _render_select {
   }
 
   # LIMIT / OFFSET
-  push @parts, "LIMIT $node->{limit}"   if defined $node->{limit};
-  push @parts, "OFFSET $node->{offset}" if defined $node->{offset};
+  if (defined $node->{limit}) {
+    $self->_assert_integer('-limit', $node->{limit});
+    push @parts, "LIMIT ?";
+    push @bind, $node->{limit};
+  }
+  if (defined $node->{offset}) {
+    $self->_assert_integer('-offset', $node->{offset});
+    push @parts, "OFFSET ?";
+    push @bind, $node->{offset};
+  }
 
   return (join(' ', @parts), @bind);
 }
@@ -392,8 +441,19 @@ sub _render_window_spec {
         my ($dir, $col) = each %$o;
         $dir = uc($dir);
         $dir =~ s/^-//;
+        $self->_assert_order_column($col) unless ref $col;
         my ($s, @b) = $self->_render_expr($col);
         push @sqls, "$s $dir";
+        push @bind, @b;
+      } elsif (!ref $o && $o =~ /^-(.+)/) {
+        $self->_assert_order_column($1);
+        my ($s, @b) = $self->_render_expr($1);
+        push @sqls, "$s DESC";
+        push @bind, @b;
+      } elsif (!ref $o) {
+        $self->_assert_order_column($o);
+        my ($s, @b) = $self->_render_expr($o);
+        push @sqls, $s;
         push @bind, @b;
       } else {
         my ($s, @b) = $self->_render_expr($o);
@@ -432,14 +492,42 @@ sub _render_compound {
     my @items = ref $node->{order_by} eq 'ARRAY' ? @{$node->{order_by}} : ($node->{order_by});
     my @osqls;
     for my $o (@items) {
-      my ($s, @b) = $self->_render_expr($o);
-      push @osqls, $s;
-      push @bind, @b;
+      if (ref $o eq 'HASH') {
+        my ($dir, $col) = each %$o;
+        $dir = uc($dir);
+        $dir =~ s/^-//;
+        $self->_assert_order_column($col) unless ref $col;
+        my ($s, @b) = $self->_render_expr($col);
+        push @osqls, "$s $dir";
+        push @bind, @b;
+      } elsif (!ref $o && $o =~ /^-(.+)/) {
+        $self->_assert_order_column($1);
+        my ($s, @b) = $self->_render_expr($1);
+        push @osqls, "$s DESC";
+        push @bind, @b;
+      } elsif (!ref $o) {
+        $self->_assert_order_column($o);
+        my ($s, @b) = $self->_render_expr($o);
+        push @osqls, $s;
+        push @bind, @b;
+      } else {
+        my ($s, @b) = $self->_render_expr($o);
+        push @osqls, $s;
+        push @bind, @b;
+      }
     }
     push @parts, "ORDER BY " . join(', ', @osqls);
   }
-  push @parts, "LIMIT $node->{limit}"   if defined $node->{limit};
-  push @parts, "OFFSET $node->{offset}" if defined $node->{offset};
+  if (defined $node->{limit}) {
+    $self->_assert_integer('-limit', $node->{limit});
+    push @parts, "LIMIT ?";
+    push @bind, $node->{limit};
+  }
+  if (defined $node->{offset}) {
+    $self->_assert_integer('-offset', $node->{offset});
+    push @parts, "OFFSET ?";
+    push @bind, $node->{offset};
+  }
 
   return (join(' ', @parts), @bind);
 }
@@ -456,6 +544,7 @@ sub _render_cte {
   my @cte_sqls;
   for my $cte (@{$node->{ctes}}) {
     my $name = $cte->{name};
+    $self->_injection_guard($name);
     my $query = $cte->{query};
 
     # Recursive CTE with -initial and -recurse
@@ -481,6 +570,7 @@ sub _render_insert {
   my @parts;
   my @bind;
 
+  $self->_injection_guard($node->{into});
   push @parts, "INSERT INTO $node->{into}";
 
   if ($node->{select}) {
@@ -523,6 +613,7 @@ sub _render_insert {
   if ($node->{on_conflict}) {
     my $oc = $node->{on_conflict};
     my $target = $oc->{'-target'};
+    $self->_injection_guard($target);
     my $update = $oc->{'-update'};
     my @set_parts;
     for my $col (sort keys %$update) {
@@ -611,7 +702,11 @@ sub _render_update {
   }
 
   # LIMIT (MySQL UPDATE ... LIMIT n)
-  push @parts, "LIMIT $node->{limit}" if defined $node->{limit};
+  if (defined $node->{limit}) {
+    $self->_assert_integer('-limit', $node->{limit});
+    push @parts, "LIMIT ?";
+    push @bind, $node->{limit};
+  }
 
   # RETURNING
   if ($node->{returning}) {
@@ -628,10 +723,12 @@ sub _render_delete {
   my @parts;
   my @bind;
 
+  $self->_injection_guard($node->{from});
   push @parts, "DELETE FROM $node->{from}";
 
   # USING (PostgreSQL)
   if ($node->{using}) {
+    $self->_injection_guard($node->{using});
     push @parts, "USING $node->{using}";
   }
 
@@ -668,6 +765,9 @@ sub _render_where {
     my @bind;
     for my $key (sort keys %$where) {
       my $val = $where->{$key};
+
+      $self->_injection_guard($key)
+        unless blessed($key) && $key->isa('SQL::Wizard::Expr');
 
       # Expression object as key (e.g. $q->func(...) => { '>' => 5 })
       if (blessed($key) && $key->isa('SQL::Wizard::Expr')) {

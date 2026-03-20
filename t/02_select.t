@@ -39,7 +39,8 @@ my $q = SQL::Wizard->new;
     -limit   => 10,
     -offset  => 20,
   )->to_sql;
-  is $sql, 'SELECT * FROM users LIMIT 10 OFFSET 20', 'limit offset';
+  is $sql, 'SELECT * FROM users LIMIT ? OFFSET ?', 'limit offset';
+  is_deeply \@bind, [10, 20], 'limit offset binds';
 }
 
 # select with order_by string

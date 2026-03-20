@@ -47,7 +47,7 @@ my $base = $q->select(
   my ($base_sql) = $base->to_sql;
   my ($lim_sql)  = $limited->to_sql;
   unlike $base_sql, qr/LIMIT/, 'base has no limit';
-  like $lim_sql, qr/LIMIT 10/, 'limited has limit';
+  like $lim_sql, qr/LIMIT \?/, 'limited has limit';
 }
 
 # offset returns new object
@@ -56,7 +56,7 @@ my $base = $q->select(
   my ($base_sql) = $base->to_sql;
   my ($page_sql) = $paged->to_sql;
   unlike $base_sql, qr/OFFSET/, 'base has no offset';
-  like $page_sql, qr/LIMIT 20 OFFSET 40/, 'paged has offset';
+  like $page_sql, qr/LIMIT \? OFFSET \?/, 'paged has offset';
 }
 
 # chaining modifiers
@@ -69,8 +69,8 @@ my $base = $q->select(
   my ($sql, @bind) = $result->to_sql;
   like $sql, qr/WHERE/, 'chained has where';
   like $sql, qr/ORDER BY name/, 'chained has order';
-  like $sql, qr/LIMIT 50/, 'chained has limit';
-  like $sql, qr/OFFSET 100/, 'chained has offset';
+  like $sql, qr/LIMIT \?/, 'chained has limit';
+  like $sql, qr/OFFSET \?/, 'chained has offset';
 
   # Original base is still clean
   my ($base_sql) = $base->to_sql;

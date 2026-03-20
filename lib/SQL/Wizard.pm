@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.03';
+our $VERSION = '0.05';
 
 use SQL::Wizard::Renderer;
 use SQL::Wizard::Expr::Column;
@@ -57,6 +57,7 @@ sub raw {
 
 sub func {
   my ($self, $name, @args) = @_;
+  confess "func name must be a word (\\w+), got '$name'" unless $name =~ /^\w+$/;
   # Coerce plain strings/values: strings in func args are column refs
   my @coerced = map {
     ref $_ ? $_ : SQL::Wizard::Expr::Column->new(
@@ -80,6 +81,7 @@ sub select {
 
 sub insert {
   my ($self, %args) = @_;
+  confess "insert requires -into" unless $args{'-into'};
   my %node;
   $node{into}         = $args{'-into'}         if $args{'-into'};
   $node{values}       = $args{'-values'}       if $args{'-values'};
@@ -118,6 +120,8 @@ sub insert {
 
 sub update {
   my ($self, %args) = @_;
+  confess "update requires -table" unless $args{'-table'};
+  confess "update requires -set" unless $args{'-set'};
   my %node;
   $node{table}     = $args{'-table'}     if $args{'-table'};
   $node{set}       = $args{'-set'}       if $args{'-set'};
@@ -144,6 +148,7 @@ sub update {
 
 sub delete {
   my ($self, %args) = @_;
+  confess "delete requires -from" unless $args{'-from'};
   my %node;
   $node{from}      = $args{'-from'}      if $args{'-from'};
   $node{where}     = $args{'-where'}     if $args{'-where'};
