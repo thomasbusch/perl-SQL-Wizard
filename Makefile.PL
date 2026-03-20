@@ -34,6 +34,6 @@ WriteMakefile(
 sub MY::postamble {
   return <<'MAKE';
 readme: lib/SQL/Wizard.pod
-	pod2markdown lib/SQL/Wizard.pod | perl tools/pod2readme.pl > README.md
+	perl tools/pod2readme.pl lib/SQL/Wizard.pod > README.md
 MAKE
 }
