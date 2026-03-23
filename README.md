@@ -187,7 +187,7 @@ clause array:
 
 Like `exists` but negated.
 
-### Any
+### any
 
     $q->any($subquery)
     # ANY(SELECT ...)
@@ -199,7 +199,7 @@ Returns an ANY subquery expression. Used with comparison operators in WHERE:
     ) } }
     # salary > ANY(SELECT salary FROM managers)
 
-### All
+### all
 
     $q->all($subquery)
     # ALL(SELECT ...)
