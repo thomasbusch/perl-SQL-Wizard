@@ -228,7 +228,7 @@ values or expression objects.
 
 Like `between` but negated.
 
-### Compare
+### compare
 
     $q->compare($left, $op, $right)
 

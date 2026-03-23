@@ -24,7 +24,7 @@ my %acronyms = map { lc($_) => $_ } qw(SQL DBI CTEs CTE MySQL PostgreSQL SQLite 
 my %methods = map { lc($_) => 1 } qw(
   new col val raw func coalesce greatest least cast exists between
   and or not as asc desc over select insert update delete with
-  join returning columns limit offset
+  join returning columns limit offset compare
 );
 my $skip_name = 0;
 
